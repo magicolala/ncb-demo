@@ -67,18 +67,16 @@
       <button id="new">New Game</button>
       <button id="flip">Flip</button>
       <button id="rand">Random move</button>
-      <button id="arrow">Draw arrow</button>
       <button id="clear">Clear drawings</button>
     </div>
     <div class="hint">
-      Ouvre la console (F12) et teste par ex. :
-      <code>board.move('e2','e4')</code>,
-      <code>board.addArrow('b1','c3')</code>
+      Clic-droit et glisser pour dessiner/effacer des flèches. Clic-droit sur
+      une case pour la surligner/désurligner.
+      <br />
+      Ouvrez la console (F12) pour tester l'API, ex:
+      <code>board.move('e2','e4')</code>
     </div>
   </div>
-
-  <!-- Ajout de chess.js pour une validation complète des règles -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/1.0.0-beta.8/chess.min.js"></script>
 
   <script type="module">
     import { mountChessboard } from './NeoChessBoard.js';
@@ -94,10 +92,6 @@
     // UI boutons
     document.querySelector('#flip').onclick = () => board.flip();
     document.querySelector('#new').onclick = () => board.setPosition(board.constructor.FEN.start);
-
-    document.querySelector('#arrow').onclick = () => {
-      board.addArrow('e2', 'e4'); // démo
-    };
 
     document.querySelector('#clear').onclick = () => {
       board.clearArrows();

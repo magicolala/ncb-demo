@@ -614,6 +614,16 @@ export class Chessboard {
     // State
     this.state = parseFEN(START_FEN);
     this.bus = new EventBus();
+    this._arrows = [];
+    this._highlights = []; // for right-click highlights
+    this._customHighlights = null;
+    this._lastMove = null;
+    this._premove = null;
+    this._dragging = null;
+    this._drawingState = null; // For right-click drawings
+    this._hoverSq = null;
+    this._selected = null;
+    this._legalCached = null;
 
     // DOM & canvases
     this._buildDOM();
@@ -856,6 +866,16 @@ export class Chessboard {
     const W = this.cOverlay.width,
       H = this.cOverlay.height;
     ctx.clearRect(0, 0, W, H);
+
+    // Draw temporary arrow for right-click drag
+    if (this._drawingState && this._drawingState.to) {
+      const startCoords = this._sqToXY(this._drawingState.from);
+      const fromX = startCoords.x + this.square / 2;
+      const fromY = startCoords.y + this.square / 2;
+      const { x: toX, y: toY } = this._drawingState.to;
+      this._drawArrowBetweenPoints(ctx, fromX, fromY, toX, toY, this.theme.arrow);
+    }
+
     const s = this.square;
 
     // Last move highlight
@@ -895,8 +915,15 @@ export class Chessboard {
     }
 
     // Arrows
-    if (this._arrows) {
-      for (const a of this._arrows) this._drawArrow(a.from, a.to, a.color || this.theme.arrow);
+    for (const a of this._arrows) {
+      this._drawArrow(a.from, a.to, a.color || this.theme.arrow);
+    }
+
+    // Highlights from right-click
+    ctx.fillStyle = this.theme.moveTo;
+    for (const sq of this._highlights) {
+      const { x, y } = this._sqToXY(sq);
+      ctx.fillRect(x, y, s, s);
     }
 
     // Premove squares
@@ -916,23 +943,15 @@ export class Chessboard {
     }
   }
 
-  _drawArrow(from, to, color) {
-    const ctx = this.ctxO;
-    const s = this.square;
-    const A = this._sqToXY(from),
-      B = this._sqToXY(to);
-    const ax = A.x + s / 2,
-      ay = A.y + s / 2;
-    const bx = B.x + s / 2,
-      by = B.y + s / 2;
-    const dx = bx - ax,
-      dy = by - ay;
+  _drawArrowBetweenPoints(ctx, fromX, fromY, toX, toY, color) {
+    const dx = toX - fromX,
+      dy = toY - fromY;
     const len = Math.hypot(dx, dy);
     if (len < 1) return;
     const ux = dx / len,
       uy = dy / len;
     const head = Math.min(16 * this.dpr, len * 0.25);
-    const thick = Math.max(6 * this.dpr, s * 0.08);
+    const thick = Math.max(6 * this.dpr, this.square * 0.08);
     ctx.save();
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
@@ -941,49 +960,102 @@ export class Chessboard {
     ctx.globalAlpha = 0.95;
     // shaft
     ctx.beginPath();
-    ctx.moveTo(ax, ay);
-    ctx.lineTo(bx - ux * head, by - uy * head);
+    ctx.moveTo(fromX, fromY);
+    ctx.lineTo(toX - ux * head, toY - uy * head);
     ctx.lineWidth = thick;
     ctx.stroke();
     // head
     ctx.beginPath();
-    ctx.moveTo(bx, by);
-    ctx.lineTo(bx - ux * head - uy * head * 0.5, by - uy * head + ux * head * 0.5);
-    ctx.lineTo(bx - ux * head + uy * head * 0.5, by - uy * head - ux * head * 0.5);
+    ctx.moveTo(toX, toY);
+    ctx.lineTo(toX - ux * head - uy * head * 0.5, toY - uy * head + ux * head * 0.5);
+    ctx.lineTo(toX - ux * head + uy * head * 0.5, toY - uy * head - ux * head * 0.5);
     ctx.closePath();
     ctx.fill();
     ctx.restore();
   }
 
+  _drawArrow(from, to, color) {
+    const s = this.square;
+    const A = this._sqToXY(from),
+      B = this._sqToXY(to);
+    const fromX = A.x + s / 2,
+      fromY = A.y + s / 2;
+    const toX = B.x + s / 2,
+      toY = B.y + s / 2;
+    this._drawArrowBetweenPoints(this.ctxO, fromX, fromY, toX, toY, color);
+  }
+
   // ---------- Interaction ----------
   _attachEvents() {
+    this._onContextMenu = (e) => e.preventDefault();
+    this.cOverlay.addEventListener("contextmenu", this._onContextMenu);
+
     this._onPointerDown = (e) => {
-      if (!this.interactive) return;
       const pt = this._evtToBoard(e);
       if (!pt) return;
-      const square = this._xyToSquare(pt.x, pt.y);
-      const piece = this._pieceAt(square);
-      if (!piece) return;
-      this._selected = square;
-      this._legalCached = this.rules.movesFrom(square);
-      this._dragging = { from: square, piece, x: pt.x, y: pt.y };
-      this._hoverSq = square;
-      this.renderAll();
+
+      if (e.button === 2) {
+        // Right-click for drawing
+        this._drawingState = { from: this._xyToSquare(pt.x, pt.y), to: null };
+        return;
+      }
+
+      if (e.button !== 0 || !this.interactive) return;
+
+      // Left-click for moving
+      const from = this._xyToSquare(pt.x, pt.y);
+      const piece = this._pieceAt(from);
+      if (piece) {
+        this._selected = from;
+        this._legalCached = this.rules.movesFrom(from);
+        this._dragging = { from, piece, x: pt.x, y: pt.y };
+        this._hoverSq = from;
+        this.renderAll();
+      }
     };
 
     this._onPointerMove = (e) => {
-      if (!this._dragging) return;
       const pt = this._evtToBoard(e);
       if (!pt) return;
-      this._dragging.x = pt.x;
-      this._dragging.y = pt.y;
-      this._hoverSq = this._xyToSquare(pt.x, pt.y);
-      this._drawPieces();
-      this._drawOverlay();
+
+      if (this._dragging) {
+        // Left-click drag for moving piece
+        this._dragging.x = pt.x;
+        this._dragging.y = pt.y;
+        this._hoverSq = this._xyToSquare(pt.x, pt.y);
+        this._drawPieces();
+        this._drawOverlay();
+      } else if (this._drawingState) {
+        // Right-click drag for drawing
+        this._drawingState.to = { x: pt.x, y: pt.y };
+        this._drawOverlay();
+      }
     };
 
     this._onPointerUp = (e) => {
-      if (!this._dragging) return;
+      // Handle right-click drawings
+      if (e.button === 2 && this._drawingState) {
+        const from = this._drawingState.from;
+        const pt = this._evtToBoard(e);
+        const to = pt ? this._xyToSquare(pt.x, pt.y) : from; // if dropped outside, treat as click
+        this._drawingState = null;
+
+        if (from === to) {
+          // Single right-click, toggle highlight
+          const index = this._highlights.indexOf(from);
+          if (index > -1) this._highlights.splice(index, 1);
+          else this._highlights.push(from);
+        } else {
+          // Right-click drag, toggle arrow
+          const index = this._arrows.findIndex((a) => a.from === from && a.to === to);
+          if (index > -1) this._arrows.splice(index, 1);
+          else this._arrows.push({ from, to });
+        }
+        this.renderAll();
+        return;
+      }
+
+      if (!this._dragging) return; // The rest is for left-click piece move
       const drop = this._hoverSq;
       const from = this._dragging.from;
       this._dragging = null;
@@ -1039,6 +1111,7 @@ export class Chessboard {
 
   _removeEvents() {
     this.cOverlay.removeEventListener("pointerdown", this._onPointerDown);
+    this.cOverlay.removeEventListener("contextmenu", this._onContextMenu);
     window.removeEventListener("pointermove", this._onPointerMove);
     window.removeEventListener("pointerup", this._onPointerUp);
     if (this._ro) this._ro.disconnect();
