@@ -605,9 +605,7 @@ export class Chessboard {
       };
       this._usingChessJS = true;
     } else {
-      console.warn(
-        "[NCB] chess.js not found. Using light rules (no check/mate validation)."
-      );
+      console.warn("[NCB] chess.js not found. Using light rules (no check/mate validation).");
       this.rules = new LightRules();
     }
 
