@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="fr">
+
+<head>
+  <meta charset="utf-8" />
+  <title>NeoChessBoard – Demo</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body {
+      margin: 0;
+      background: #0b1020;
+      color: #e7ecf3;
+      font-family: ui-sans-serif, system-ui;
+      display: grid;
+      place-items: center;
+      min-height: 100dvh;
+    }
+
+    .wrap {
+      width: min(90vmin, 720px);
+    }
+
+    #board {
+      width: 100%;
+      aspect-ratio: 1/1;
+    }
+
+    .row {
+      display: flex;
+      gap: .5rem;
+      margin-top: .75rem;
+    }
+
+    button {
+      padding: .5rem .8rem;
+      border-radius: .6rem;
+      border: 1px solid #2b3550;
+      background: #151b2e;
+      color: #e7ecf3;
+      cursor: pointer;
+    }
+
+    button:active {
+      transform: translateY(1px);
+    }
+
+    .hint {
+      opacity: .7;
+      font-size: .9rem;
+      margin-top: .25rem;
+    }
+
+    code {
+      background: #11172a;
+      padding: .1rem .35rem;
+      border-radius: .4rem;
+    }
+  </style>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+
+</head>
+
+<body>
+  <div class="wrap">
+    <div id="board"></div>
+    <div class="row">
+      <button id="new">New Game</button>
+      <button id="flip">Flip</button>
+      <button id="rand">Random move</button>
+      <button id="arrow">Draw arrow</button>
+      <button id="clear">Clear drawings</button>
+    </div>
+    <div class="hint">
+      Ouvre la console (F12) et teste par ex. :
+      <code>board.move('e2','e4')</code>,
+      <code>board.addArrow('b1','c3')</code>
+    </div>
+  </div>
+
+  <!-- Ajout de chess.js pour une validation complète des règles -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/1.0.0-beta.8/chess.min.js"></script>
+
+  <script type="module">
+    import { mountChessboard } from './NeoChessBoard.js';
+
+    // Monte le board
+    const board = mountChessboard('#board', {
+      theme: 'midnight', // 'classic' dispo aussi
+      interactive: true,
+      fen: undefined // position de départ par défaut
+    });
+    window.board = board; // accessible dans la console
+
+    // UI boutons
+    document.querySelector('#flip').onclick = () => board.flip();
+    document.querySelector('#new').onclick = () => board.setPosition(board.constructor.FEN.start);
+
+    document.querySelector('#arrow').onclick = () => {
+      board.addArrow('e2', 'e4'); // démo
+    };
+
+    document.querySelector('#clear').onclick = () => {
+      board.clearArrows();
+      board.clearHighlights();
+    };
+
+    // Random-move (utilise chess.js pour trouver un coup valide)
+    document.querySelector('#rand').onclick = () => {
+      let allMoves = [];
+      // Si chess.js est chargé, sa méthode .moves() est la plus simple
+      if (typeof board.rules.moves === "function") {
+        allMoves = board.rules.moves({ verbose: true });
+      } else {
+        // Sinon, on itère sur les pièces pour le moteur de règles simple
+        const squares = Object.keys(board.state.pieces);
+        for (const sq of squares) {
+          const piece = board.state.pieces[sq];
+          const side = piece >= "A" && piece <= "Z" ? "w" : "b";
+          if (side === board.state.turn) {
+            allMoves.push(...board.rules.movesFrom(sq));
+          }
+        }
+      }
+      if (!allMoves.length) return;
+      const pick = allMoves[Math.floor(Math.random() * allMoves.length)];
+      board.move(pick.from, pick.to);
+    };
+
+    // Events
+    board.on('move', ({ from, to, fen }) => console.log('move', from, to, fen));
+    board.on('illegal', (e) => console.warn('illegal', e));
+    board.on('update', ({ fen }) => console.log('update', fen));
+  </script>
+</body>
+
+</html>
