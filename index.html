@@ -1,12 +1,13 @@
 <!DOCTYPE html>
 <html lang="fr">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Démo NeoChessBoard.js</title>
 
     <!-- Pour la validation complète des règles d'échecs (optionnel, NeoChessBoard a un fallback) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.13.4/chess.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
 
     <style>
         body {
@@ -18,11 +19,13 @@
             background-color: #f4f4f5;
             color: #18181b;
         }
+
         .board-container {
             flex-grow: 1;
             min-width: 300px;
             max-width: 640px;
         }
+
         .controls {
             display: flex;
             flex-direction: column;
@@ -30,6 +33,7 @@
             min-width: 300px;
             flex-basis: 320px;
         }
+
         .control-group {
             display: flex;
             flex-direction: column;
@@ -39,24 +43,31 @@
             border-radius: 12px;
             box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
         }
+
         h3 {
             margin: 0 0 0.5rem 0;
             font-size: 1.1rem;
         }
-        button, select, input[type="text"] {
+
+        button,
+        select,
+        input[type="text"] {
             padding: 0.5rem 0.75rem;
             border-radius: 6px;
             border: 1px solid #d4d4d8;
             background-color: #fff;
             font-size: 1rem;
         }
+
         button {
             cursor: pointer;
             background-color: #fafafa;
         }
+
         button:hover {
             background-color: #f4f4f5;
         }
+
         #current-fen {
             width: 100%;
             box-sizing: border-box;
@@ -64,6 +75,7 @@
             font-size: 0.9rem;
             background-color: #f4f4f5;
         }
+
         #log-output {
             height: 120px;
             overflow-y: scroll;
@@ -76,6 +88,7 @@
         }
     </style>
 </head>
+
 <body>
 
     <div class="board-container">
@@ -104,7 +117,7 @@
             <p style="margin: 0.5rem 0 0.25rem 0;">FEN Actuel :</p>
             <input type="text" id="current-fen" readonly>
         </div>
-        
+
         <div class="control-group">
             <h3>Superpositions (Overlays)</h3>
             <button id="add-arrow">Ajouter une flèche (e2-e4)</button>
@@ -146,4 +159,5 @@
         log("Échiquier initialisé.");
     </script>
 </body>
+
 </html>

@@ -984,6 +984,23 @@ export class Chessboard {
   }
 
   // ---------- Interaction ----------
+  _updateCursor(pt) {
+    if (this._dragging) {
+      this.cOverlay.style.cursor = "grabbing";
+      return;
+    }
+
+    if (!this.interactive || !pt || this._drawingState) {
+      this.cOverlay.style.cursor = "default";
+      return;
+    }
+
+    const sq = this._xyToSquare(pt.x, pt.y);
+    const piece = this._pieceAt(sq);
+    const canMove = piece && (isWhitePiece(piece) ? "w" : "b") === this.state.turn;
+    this.cOverlay.style.cursor = canMove ? "grab" : "default";
+  }
+
   _attachEvents() {
     this._onContextMenu = (e) => e.preventDefault();
     this.cOverlay.addEventListener("contextmenu", this._onContextMenu);
@@ -995,6 +1012,7 @@ export class Chessboard {
       if (e.button === 2) {
         // Right-click for drawing
         this._drawingState = { from: this._xyToSquare(pt.x, pt.y), to: null };
+        this._updateCursor(pt);
         return;
       }
 
@@ -1009,11 +1027,13 @@ export class Chessboard {
         this._dragging = { from, piece, x: pt.x, y: pt.y };
         this._hoverSq = from;
         this.renderAll();
+        this._updateCursor(pt);
       }
     };
 
     this._onPointerMove = (e) => {
       const pt = this._evtToBoard(e);
+      this._updateCursor(pt);
       if (!pt) return;
 
       if (this._dragging) {
@@ -1032,17 +1052,18 @@ export class Chessboard {
 
     this._onPointerUp = (e) => {
       // Handle right-click drawings
+      const pt = this._evtToBoard(e);
       if (e.button === 2 && this._drawingState) {
         // If a premove exists, the first right-click action is to cancel it.
         if (this._premove) {
           this._premove = null;
           this._drawingState = null; // Consume the drawing action
+          this._updateCursor(pt);
           this.renderAll();
           return;
         }
 
         const from = this._drawingState.from;
-        const pt = this._evtToBoard(e);
         const to = pt ? this._xyToSquare(pt.x, pt.y) : from; // if dropped outside, treat as click
         this._drawingState = null;
 
@@ -1057,6 +1078,7 @@ export class Chessboard {
           if (index > -1) this._arrows.splice(index, 1);
           else this._arrows.push({ from, to });
         }
+        this._updateCursor(pt);
         this.renderAll();
         return;
       }
@@ -1066,6 +1088,7 @@ export class Chessboard {
       const from = this._dragging.from;
       this._dragging = null;
       this._hoverSq = null;
+      this._updateCursor(pt);
 
       if (!drop || drop === from) {
         this._selected = null;
