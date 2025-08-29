@@ -1035,6 +1035,14 @@ export class Chessboard {
     this._onPointerUp = (e) => {
       // Handle right-click drawings
       if (e.button === 2 && this._drawingState) {
+        // If a premove exists, the first right-click action is to cancel it.
+        if (this._premove) {
+          this._premove = null;
+          this._drawingState = null; // Consume the drawing action
+          this.renderAll();
+          return;
+        }
+
         const from = this._drawingState.from;
         const pt = this._evtToBoard(e);
         const to = pt ? this._xyToSquare(pt.x, pt.y) : from; // if dropped outside, treat as click
