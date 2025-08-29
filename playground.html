@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <title>NeoChessBoard – Playground</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <style>
+      :root{ --bg:#0b1020; --card:#0f1731; --muted:#98a3c7; --line:#222a48; --accent:#6ea8ff; }
+      *{ box-sizing:border-box }
+      body{ margin:0; background:var(--bg); color:#e7ecf3; font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto; }
+      .layout{ display:grid; grid-template-columns: 360px 1fr; gap:16px; padding:16px; min-height:100dvh; }
+      @media (max-width: 1100px){ .layout{ grid-template-columns: 1fr; } }
+      .card{ background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; box-shadow: 0 10px 30px rgba(0,0,0,.12); }
+      h1{ margin:8px 0 14px; font-size:1.1rem; font-weight:700; opacity:.95; }
+      .row{ display:flex; gap:8px; flex-wrap:wrap; }
+      .col{ display:flex; flex-direction:column; gap:10px; }
+      label{ font-size:.85rem; color:var(--muted); margin-bottom:6px; display:block; }
+      input[type="text"], textarea, select{ width:100%; background:#0b132a; color:#dce5ff; border:1px solid var(--line); border-radius:10px; padding:.6rem .7rem; outline:none; }
+      textarea{ min-height:86px; resize:vertical; }
+      button{ background:#121a35; color:#e7ecf3; border:1px solid var(--line); padding:.55rem .8rem; border-radius:10px; cursor:pointer; }
+      button:hover{ border-color:#2d3861 }
+      .tiny{ font-size:.82rem; color:var(--muted) }
+      .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+      .grid3{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+      .boardWrap{ display:grid; grid-template-columns: minmax(280px, min(80vh, 90vmin)) 24px; gap:10px; justify-content:center; align-content:start; }
+      #board{ width:100%; aspect-ratio:1/1; }
+      /* eval bar */
+      .eval{ position:relative; border-radius:10px; overflow:hidden; background:#111628; border:1px solid var(--line); }
+      .evalFill{ position:absolute; left:0; bottom:0; width:100%; height:50%; background:linear-gradient(#dfe7ff,#6ea8ff); }
+      .evalMarks{ position:absolute; left:0; top:0; bottom:0; width:100%; pointer-events:none; }
+      .evalMarks::before{ content:""; position:absolute; left:0; top:50%; width:100%; height:1px; background:#ffffff22; }
+      .moves{ font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:.92rem; line-height:1.35; max-height:200px; overflow:auto; padding:.5rem; background:#0c1227; border:1px solid var(--line); border-radius:10px; }
+      .pill{ background:#0d1631; border:1px solid #243055; color:#cfe1ff; padding:.25rem .5rem; border-radius:999px; font-size:.78rem; }
+    </style>
+  </head>
+  <body>
+    <div class="layout">
+      <!-- Sidebar Controls -->
+      <div class="card col">
+        <h1>Playground</h1>
+
+        <div>
+          <label>FEN</label>
+          <textarea id="fen"></textarea>
+          <div class="row">
+            <button id="loadFen">Charger FEN</button>
+            <button id="startFen">Position initiale</button>
+            <button id="copyFen">Copier FEN</button>
+          </div>
+          <div class="tiny">Astuce: tu peux aussi glisser-déposer les pièces.</div>
+        </div>
+
+        <div class="grid2">
+          <div>
+            <label>Thème</label>
+            <select id="theme">
+              <option value="midnight">Midnight (dark)</option>
+              <option value="classic">Classic (light)</option>
+            </select>
+          </div>
+          <div>
+            <label>Orientation</label>
+            <div class="row">
+              <button id="whiteBottom">Blancs en bas</button>
+              <button id="blackBottom">Noirs en bas</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid2">
+          <div>
+            <label>Animation (ms)</label>
+            <input type="range" min="50" max="400" step="10" id="anim" />
+          </div>
+          <div>
+            <label>Options</label>
+            <div class="row">
+              <label class="pill"><input type="checkbox" id="coords" checked /> coords</label>
+              <label class="pill"><input type="checkbox" id="legals" checked /> dots</label>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label>Flèches</label>
+          <div class="row">
+            <button id="arrowMode">Mode flèche: OFF</button>
+            <button id="clearArrows">Clear</button>
+          </div>
+          <div class="tiny">Quand activé, clique 2 cases pour dessiner une flèche (comme Chessbook).</div>
+        </div>
+
+        <div>
+          <label>Highlights</label>
+          <div class="row">
+            <input type="text" id="hlInput" placeholder="e4,d4,c6" />
+            <button id="applyHL">Appliquer</button>
+            <button id="clearHL">Clear</button>
+          </div>
+        </div>
+
+        <div class="grid3">
+          <button id="flip">Flip</button>
+          <button id="rand">Random move</button>
+          <button id="reloadWithChessJs">Activer chess.js</button>
+        </div>
+
+        <div>
+          <label>Mouvements</label>
+          <div id="moves" class="moves"></div>
+        </div>
+      </div>
+
+      <!-- Board + Eval Bar -->
+      <div class="boardWrap">
+        <div id="board"></div>
+        <div class="eval" id="evalBar" aria-label="eval">
+          <div class="evalFill" id="evalFill"></div>
+          <div class="evalMarks"></div>
+        </div>
+        <div class="tiny" style="grid-column:1/3">Eval mock (glisse pour tester): <input id="evalRange" type="range" min="0" max="100" value="50" /></div>
+        <div class="tiny" style="grid-column:1/3">Dernier FEN: <code id="lastFen"></code></div>
+      </div>
+    </div>
+
+    <script type="module">
+      import { mountChessboard, Chessboard } from './NeoChessBoard.js';
+
+      let board = createBoard();
+
+      // --- helpers ---
+      function createBoard(){
+        const b = mountChessboard('#board', { theme:'midnight', interactive:true });
+        // init UI state
+        document.querySelector('#fen').value = b.getPosition();
+        document.querySelector('#anim').value = b.animationMs;
+        document.querySelector('#coords').checked = !!b.showCoords;
+        document.querySelector('#legals').checked = !!b.highlightLegal;
+        document.querySelector('#lastFen').textContent = b.getPosition();
+
+        // events
+        b.on('move', ({from,to,fen})=>{
+          pushMove(from, to);
+          document.querySelector('#fen').value = fen;
+          document.querySelector('#lastFen').textContent = fen;
+        });
+        b.on('update', ({fen})=>{
+          document.querySelector('#lastFen').textContent = fen;
+        });
+
+        // arrow mode clicks (use private helper, ok for playground)
+        const overlay = b.cOverlay;
+        overlay.addEventListener('pointerdown', (e)=>{
+          if(!arrowMode) return;
+          const sq = xyToSquareFromBoard(b, e);
+          if(!sq) return;
+          if(!arrowFrom){ arrowFrom = sq; b.highlightSquares([sq]); }
+          else { b.addArrow(arrowFrom, sq); arrowFrom = null; b.clearHighlights(); }
+        });
+
+        return b;
+      }
+
+      function xyToSquareFromBoard(board, evt){
+        const rect = board.cOverlay.getBoundingClientRect();
+        const x = (evt.clientX - rect.left) * (board.cOverlay.width / rect.width);
+        const y = (evt.clientY - rect.top) * (board.cOverlay.height / rect.height);
+        if(x<0||y<0||x>board.cOverlay.width||y>board.cOverlay.height) return null;
+        // reuse board's private method if present; else compute quickly
+        if(board._xyToSquare) return board._xyToSquare(x,y);
+        const f = Math.max(0, Math.min(7, Math.floor(x / board.square)));
+        const r = Math.max(0, Math.min(7, Math.floor(y / board.square)));
+        const FILES=['a','b','c','d','e','f','g','h']; const RANKS=['1','2','3','4','5','6','7','8'];
+        const ff = board.orientation==='white'? f : 7-f;
+        const rr = board.orientation==='white'? r : 7-r;
+        return FILES[ff]+RANKS[rr];
+      }
+
+      const movesEl = document.querySelector('#moves');
+      function pushMove(from,to){
+        const i = movesEl.children.length + 1;
+        const row = document.createElement('div');
+        row.textContent = `${i}. ${from}-${to}`;
+        movesEl.appendChild(row);
+        movesEl.scrollTop = movesEl.scrollHeight;
+      }
+
+      // --- Controls ---
+      const fenEl = document.querySelector('#fen');
+      document.querySelector('#loadFen').onclick = () => board.setPosition(fenEl.value);
+      document.querySelector('#startFen').onclick = () => { const f=Chessboard.FEN.start; fenEl.value=f; board.setPosition(f); };
+      document.querySelector('#copyFen').onclick = () => { navigator.clipboard.writeText(board.getPosition()); };
+
+      document.querySelector('#theme').onchange = (e)=> board.setTheme(e.target.value);
+
+      document.querySelector('#whiteBottom').onclick = ()=> board.setOrientation('white');
+      document.querySelector('#blackBottom').onclick = ()=> board.setOrientation('black');
+      document.querySelector('#flip').onclick = ()=> board.flip();
+
+      document.querySelector('#anim').oninput = (e)=> { board.animationMs = Number(e.target.value); };
+      document.querySelector('#coords').onchange = (e)=> { board.showCoords = e.target.checked; board.renderAll(); };
+      document.querySelector('#legals').onchange = (e)=> { board.highlightLegal = e.target.checked; board.renderAll(); };
+
+      // Random move
+      document.querySelector('#rand').onclick = () => {
+        const squares = ['a','b','c','d','e','f','g','h'].flatMap(f => ['1','2','3','4','5','6','7','8'].map(r => f+r));
+        const all = [];
+        for (const sq of squares) {
+          const ms = board.rules.movesFrom ? board.rules.movesFrom(sq) : [];
+          for (const m of ms) all.push(m);
+        }
+        if (!all.length) return;
+        const pick = all[Math.floor(Math.random()*all.length)];
+        board.move(pick.from, pick.to);
+      };
+
+      // Chess.js loader (optional)
+      document.querySelector('#reloadWithChessJs').onclick = async () => {
+        if(!window.Chess){
+          await loadScript('https://cdn.jsdelivr.net/npm/chess.js@1.0.0/dist/chess.min.js');
+        }
+        // remount to let the lib detect window.Chess
+        const old = board; old.destroy();
+        board = createBoard();
+      };
+
+      function loadScript(src){
+        return new Promise((resolve,reject)=>{
+          const s = document.createElement('script'); s.src = src; s.onload = resolve; s.onerror = reject; document.head.appendChild(s);
+        });
+      }
+
+      // Arrows & highlights
+      let arrowMode = false; let arrowFrom = null;
+      const arrowBtn = document.querySelector('#arrowMode');
+      document.querySelector('#clearArrows').onclick = ()=>{ board.clearArrows(); };
+      arrowBtn.onclick = ()=>{ arrowMode = !arrowMode; arrowFrom=null; board.clearHighlights(); arrowBtn.textContent = 'Mode flèche: ' + (arrowMode?'ON':'OFF'); };
+
+      document.querySelector('#applyHL').onclick = ()=>{
+        const raw = document.querySelector('#hlInput').value.trim();
+        const squares = raw? raw.split(/\s*,\s*/) : [];
+        board.highlightSquares(squares);
+      };
+      document.querySelector('#clearHL').onclick = ()=> board.clearHighlights();
+
+      // Eval mock
+      const evalRange = document.querySelector('#evalRange');
+      const evalFill = document.querySelector('#evalFill');
+      const evalEl = document.querySelector('#evalBar');
+      evalRange.oninput = ()=>{
+        const v = Number(evalRange.value); // 0..100 (0 noir gagne, 100 blanc gagne)
+        evalFill.style.height = `${v}%`;
+        evalEl.title = `Eval: ${((v-50)/10).toFixed(1)} (≈ pawns)`;
+      };
+      evalRange.oninput();
+
+    </script>
+  </body>
+</html>
